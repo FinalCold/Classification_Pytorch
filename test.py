@@ -19,74 +19,71 @@ import utils
 # Setting runable GPUs
 os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def evaluate(device, criterion, batch_size, num_workers):
 
-    parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
-    parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
-    parser.add_argument('--epoch', '-e', default=500, type=int, help='Number of Epoch')
-    parser.add_argument('--lr', '-l', default=1e-3, type=float, help='learning rate')
-    parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
-    parser.add_argument('--gpu', '-g', default=0, type=int, help='Choose a specific GPU by ID')
-
-    return parser.parse_args()
-
-def evaluate():
+    PATH = './checkpoint/'
+    model = torch.load(PATH + 'model.pt').to(device)
 
     model.eval()
+
+    testloader = dataset.test_dataset(batch_size=batch_size, num_workers=num_workers)
+
     test_loss = 0
     correct = 0
+    correct_5 = 0
     total = 0
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(testloader):
+
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
 
             test_loss += criterion(outputs, targets).item()
-            _, predicted = outputs.max(1)
+            _, predicted = torch.topk(outputs, 1)
+            predicted = predicted.view(-1)
+            _, predicted_5 = torch.topk(outputs, 5)
+
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            utils.progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                         % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+            # transform the targets layer to compare with top_5 predicted layer
+            targets_trans = targets.view(-1, 1)
+            correct_5 += torch.eq(targets_trans, predicted_5).sum().item()
+            
+            top_1_err = 100.0 - 100. * correct/total
+            top_5_err = 100.0 - 100. * correct_5/total
 
-args = parse_args()
+            acc = 100.*correct/total
 
-# Setting the GPU by ID
-device = f'cuda:{args.gpu}' if torch.cuda.is_available() else 'cpu'
-torch.cuda.set_device(device)
+            utils.progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% | top_1_err: %.3f%% | top_5_err: %.3f%% (%d/%d)'
+                         % (test_loss/(batch_idx+1), acc, top_1_err, top_5_err, correct, total))
+        
+    return acc, test_loss, top_1_err, top_5_err
 
-n_gpus = torch.cuda.device_count()
+if __name__ == '__main__':
+ 
+    # Setting the GPU by ID
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-print('Count of using GPUs : ', n_gpus) 
+    n_gpus = torch.cuda.device_count()
 
-# Global variables
-best_acc = 0
+    print('Count of using GPUs : ', n_gpus) 
 
-batch_size = int(args.batch_size / n_gpus)
-num_workers = int(args.num_workers / n_gpus)
+    # Global variables
+    best_acc = 0
 
-# Preparing Cifar10 dataset
-print('==> Preparing Dataset..')
-testloader = dataset.test_dataset(batch_size=batch_size, num_workers=num_workers)
+    # Preparing Cifar10 dataset
+    print('==> Preparing Dataset..')
+    testloader = dataset.test_dataset(batch_size=64, num_workers=2)
 
-print('==> Building Model..')
+    print('==> Building Model..')
 
-# for using multi GPUs
-# model = vgg.VGG('VGG16')
+    # for using multi GPUs
+    # model = vgg.VGG('VGG16')
 
-PATH = './checkpoint/'
+    criterion = nn.CrossEntropyLoss()
 
-model = torch.load(PATH + 'model.pt')
+    evaluate()
 
-if device == 'cuda':
-    model = torch.nn.DataParallel(model)
-
-model = model.to(device)
-
-criterion = nn.CrossEntropyLoss()
-
-evaluate()
-
-print('Finished Evaluating')
+    print('Finished Evaluating')

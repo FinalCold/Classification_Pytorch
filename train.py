@@ -20,16 +20,17 @@ from Model import vgg
 from Model import resnet
 import dataset
 import utils
+import test
 
 # Setting runable GPUs
-os.environ["CUDA_VISIBLE_DEVICES"] = '5, 6'
+os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--batch_size', '-b', default=512, type=int, help='Training batch size')
+    parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=1, type=int, help='Number of workers')
-    parser.add_argument('--epoch', '-e', default=300, type=int, help='Number of Epoch')
+    parser.add_argument('--epoch', '-e', default=200, type=int, help='Number of Epoch')
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
@@ -92,7 +93,6 @@ def validate():
             targets_trans = targets.view(-1, 1)
             correct_5 += torch.eq(targets_trans, predicted_5).sum().item()
             
-
             top_1_err = 100.0 - 100. * correct/total
             top_5_err = 100.0 - 100. * correct_5/total
 
@@ -121,77 +121,77 @@ def save_ckpt(accuracy, top_1_err, top_5_err):
         torch.save(model, PATH + 'model.pt')
         torch.save(model.state_dict(), PATH + 'model_state_dict.pt')
 
-# Parsing arguments
-args = parse_args()
+if __name__ == '__main__':
+    # Parsing arguments
+    args = parse_args()
 
-# Setting the GPU by ID
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# torch.cuda.set_device(device)
+    # Setting the GPU by ID
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-n_gpus = torch.cuda.device_count()
+    n_gpus = torch.cuda.device_count()
+    print('Count of using GPUs : ', n_gpus) 
 
-print('Count of using GPUs : ', n_gpus) 
+    # Global variables
+    best_acc = 0
+    best_top_1_err = 0
+    best_top_5_err = 0
 
-# Global variables
-best_acc = 0
-best_top_1_err = 0
-best_top_5_err = 0
+    # Using Tensorboard to visualization
+    writer = SummaryWriter()
 
-# batch_size = int(args.batch_size / n_gpus)
-# num_workers = int(args.num_workers / n_gpus)
+    # Preparing Cifar10 dataset
+    print('==> Preparing Dataset..')
+    trainloader, validloader = dataset.train_val_dataset(batch_size=args.batch_size, num_workers=args.num_workers, valid_size=0.1)
 
-# Using Tensorboard to visualization
-writer = SummaryWriter()
+    # Building Model
+    print('==> Building Model..')
 
-# Preparing Cifar10 dataset
-print('==> Preparing Dataset..')
-trainloader, validloader = dataset.train_val_dataset(batch_size=args.batch_size, num_workers=args.num_workers, valid_size=0.1)
+    # for using multi GPUs
+    model = vgg.VGG('VGG19')
+    # model = resnet.ResNet50()
 
-# Building Model
-print('==> Building Model..')
+    model = model.to(device)
 
-# for using multi GPUs
-model = vgg.VGG('VGG19')
-# model = resnet.ResNet50()
+    if torch.cuda.device_count() > 0:
+        model = torch.nn.DataParallel(model)
 
-model = model.to(device)
+    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
 
-if torch.cuda.device_count() > 0:
-    model = torch.nn.DataParallel(model)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[70, 150], gamma=0.3)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-3)
 
-torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+    writer = SummaryWriter()
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 250], gamma=0.1)
-# scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-3)
+    start_time = time.time()
+    for epoch in range(1, args.epoch + 1):
+        print('Epoch : %d' % epoch)
 
-writer = SummaryWriter()
+        train_acc, train_los = train()
+        val_acc, val_los, top_1_err, top_5_err = validate()
 
-start_time = time.time()
-for epoch in range(1, args.epoch + 1):
-    print('Epoch : %d' % epoch)
+        log_lr = scheduler.optimizer.param_groups[0]['lr']
 
-    train_acc, train_los = train()
-    val_acc, test_los, top_1_err, top_5_err = validate()
+        save_ckpt(val_acc, top_1_err, top_5_err)
+        end_time = time.time()
+        print(f'Current Epoch Training Time : {end_time-start_time}s')
+        scheduler.step()
 
-    log_lr = scheduler.optimizer.param_groups[0]['lr']
+        writer.add_scalar('Loss/train', train_los, epoch)
+        writer.add_scalar('Loss/val', val_los, epoch)
+        writer.add_scalar('Accuracy/train', train_acc, epoch)
+        writer.add_scalar('Accuracy/val', val_acc, epoch)
+        writer.add_scalar('Learning rate', log_lr, epoch)
+        writer.add_scalar('Top_1_error', top_1_err, epoch)
+        writer.add_scalar('Top_5_error', top_5_err, epoch)
 
-    save_ckpt(val_acc, top_1_err, top_5_err)
-    end_time = time.time()
-    print(f'Current Epoch Training Time : {end_time-start_time}s')
-    scheduler.step()
+    writer.close()
 
-    writer.add_scalar('Loss/train', train_los, epoch)
-    writer.add_scalar('Loss/test', test_los, epoch)
-    writer.add_scalar('Accuracy/train', train_acc, epoch)
-    writer.add_scalar('Accuracy/test', val_acc, epoch)
-    writer.add_scalar('Learning rate', log_lr, epoch)
-    writer.add_scalar('Top_1_error', top_1_err, epoch)
-    writer.add_scalar('Top_5_error', top_5_err, epoch)
+    print(f'Finish Training.. Total Training Time : {end_time-start_time}s, Best Val Accuracy : {best_acc}%')
+    print(f'top-k error of best weight of model, top-1 err : {best_top_1_err}%, top-5 err : {best_top_5_err}%')
 
+    # Evaluate the test dataset from the best accuracy of validation model.
+    test_acc, test_los, top_1_err, top_5_err = test.evaluate(device, criterion, batch_size=args.batch_size, num_workers=args.num_workers)
 
-writer.close()
-
-print(f'Finished Training.. Total Training Time : {end_time-start_time}s, Best Accuracy : {best_acc}%')
-print(f'top-k error of best weight of model, top-1 err : {best_top_1_err}%, top-5 err : {best_top_5_err}%')
+    print(f'Finish Evaluating.. Test Accuracy : {test_acc}% | Test Loss : {test_los}% | top_1_err : {top_1_err}% | top_5_err : {top_5_err}%')

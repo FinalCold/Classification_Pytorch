@@ -2,7 +2,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
-from sklearn.model_selection import train_test_split
 
 import numpy as np
 
@@ -42,12 +41,12 @@ def train_val_dataset(batch_size, num_workers, valid_size=0.1, shuffle=True):
     trainloader = torch.utils.data.DataLoader(
         dataset=trainset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers)
 
-    print("Prepare training dataset Complete..")
+    print("Prepare training dataset Complete.. Total size : ", n_train - split)
 
     validloader = torch.utils.data.DataLoader(
-        dataset=trainset, batch_size=batch_size, sampler=valid_sampler, num_workers=num_workers)
+        dataset=validset, batch_size=batch_size, sampler=valid_sampler, num_workers=num_workers)
 
-    print("Prepare validation dataset Complete..")
+    print("Prepare validation dataset Complete.. Total size : ", split)
 
     return trainloader, validloader
 
@@ -69,7 +68,7 @@ def test_dataset(batch_size, num_workers):
     return testloader
 
 def test():
-    trainloader = training_dataset(64)
+    trainloader, validloader = train_val_dataset(64)
     testloader = test_dataset(64)
 
     print(trainloader)
