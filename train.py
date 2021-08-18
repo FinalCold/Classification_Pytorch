@@ -28,7 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--batch_size', '-b', default=512, type=int, help='Training batch size')
-    parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
+    parser.add_argument('--num_workers', '-n', default=1, type=int, help='Number of workers')
     parser.add_argument('--epoch', '-e', default=300, type=int, help='Number of Epoch')
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -38,7 +38,6 @@ def parse_args():
     return parser.parse_args()
 
 def train():
-    global best_acc
 
     model.train()
     
@@ -67,7 +66,6 @@ def train():
     return acc, train_loss
 
 def validate():
-    global best_acc
 
     model.eval()
 
@@ -77,7 +75,7 @@ def validate():
     total = 0
 
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(testloader):
+        for batch_idx, (inputs, targets) in enumerate(validloader):
 
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
@@ -86,12 +84,6 @@ def validate():
             _, predicted = torch.topk(outputs, 1)
             predicted = predicted.view(-1)
             _, predicted_5 = torch.topk(outputs, 5)
-            # predicted_5 = predicted_5
-
-
-            # print('target :',targets)
-            # print('predict : ', predicted_5)
-
 
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
@@ -106,7 +98,7 @@ def validate():
 
             acc = 100.*correct/total
 
-            utils.progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% | top_1_err: %.3f%% | top_5_err: %.3f%% (%d/%d)'
+            utils.progress_bar(batch_idx, len(validloader), 'Loss: %.3f | Acc: %.3f%% | top_1_err: %.3f%% | top_5_err: %.3f%% (%d/%d)'
                          % (test_loss/(batch_idx+1), acc, top_1_err, top_5_err, correct, total))
         
     return acc, test_loss, top_1_err, top_5_err
@@ -153,8 +145,7 @@ writer = SummaryWriter()
 
 # Preparing Cifar10 dataset
 print('==> Preparing Dataset..')
-trainloader = dataset.training_dataset(batch_size=args.batch_size, num_workers=args.num_workers)
-testloader = dataset.test_dataset(batch_size=args.batch_size, num_workers=args.num_workers)
+trainloader, validloader = dataset.train_val_dataset(batch_size=args.batch_size, num_workers=args.num_workers, valid_size=0.1)
 
 # Building Model
 print('==> Building Model..')
