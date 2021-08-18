@@ -199,6 +199,7 @@ for epoch in range(1, args.epoch + 1):
     writer.add_scalar('Top_1_error', top_1_err, epoch)
     writer.add_scalar('Top_5_error', top_5_err, epoch)
 
+
 writer.close()
 
 print(f'Finished Training.. Total Training Time : {end_time-start_time}s, Best Accuracy : {best_acc}%')
