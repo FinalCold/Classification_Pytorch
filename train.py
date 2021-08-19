@@ -28,6 +28,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
+    parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=1, type=int, help='Number of workers')
     parser.add_argument('--epoch', '-e', default=200, type=int, help='Number of Epoch')
@@ -119,7 +121,6 @@ def save_ckpt(accuracy, top_1_err, top_5_err):
         best_top_5_err = top_5_err
 
         torch.save(model, PATH + 'model.pt')
-        torch.save(model.state_dict(), PATH + 'model_state_dict.pt')
 
 if __name__ == '__main__':
     # Parsing arguments
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     print('==> Building Model..')
 
     # for using multi GPUs
-    model = vgg.VGG('VGG19')
+    model = vgg.VGG('VGG16')
     # model = resnet.ResNet50()
 
     model = model.to(device)
