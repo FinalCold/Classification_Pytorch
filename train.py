@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
-    parser.add_argument('--num_workers', '-n', default=1, type=int, help='Number of workers')
+    parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
     parser.add_argument('--epoch', '-e', default=200, type=int, help='Number of Epoch')
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -120,7 +120,7 @@ def save_ckpt(accuracy, top_1_err, top_5_err):
         best_top_1_err = top_1_err
         best_top_5_err = top_5_err
 
-        torch.save(model, PATH + 'model.pt')
+        torch.save(model, PATH + str(args.model) + '_' + str(args.step) + '_' + 'model.pt')
 
 if __name__ == '__main__':
     # Parsing arguments
@@ -137,9 +137,6 @@ if __name__ == '__main__':
     best_top_1_err = 0
     best_top_5_err = 0
 
-    # Using Tensorboard to visualization
-    writer = SummaryWriter()
-
     # Preparing Cifar10 dataset
     print('==> Preparing Dataset..')
     trainloader, validloader = dataset.train_val_dataset(batch_size=args.batch_size, num_workers=args.num_workers, valid_size=0.1)
@@ -148,12 +145,12 @@ if __name__ == '__main__':
     print('==> Building Model..')
 
     # for using multi GPUs
-    model = vgg.VGG('VGG16')
+    model = vgg.VGG(args.model)
     # model = resnet.ResNet50()
 
     model = model.to(device)
 
-    if torch.cuda.device_count() > 0:
+    if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
     torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
@@ -163,7 +160,8 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[70, 150], gamma=0.3)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-3)
 
-    writer = SummaryWriter()
+    # Using Tensorboard to visualization
+    writer = SummaryWriter('runs/'+ str(args.model) + '_' + str(args.step) + '_' + str(args.epoch) + '_' + str(args.lr) + '/')
 
     start_time = time.time()
     for epoch in range(1, args.epoch + 1):
@@ -193,6 +191,13 @@ if __name__ == '__main__':
     print(f'top-k error of best weight of model, top-1 err : {best_top_1_err}%, top-5 err : {best_top_5_err}%')
 
     # Evaluate the test dataset from the best accuracy of validation model.
-    test_acc, test_los, top_1_err, top_5_err = test.evaluate(device, criterion, batch_size=args.batch_size, num_workers=args.num_workers)
+    test_acc, test_los, test_top_1_err, test_top_5_err = test.evaluate(name=args.model,
+                                                            step=args.step, 
+                                                            device=device, 
+                                                            batch_size=args.batch_size, 
+                                                            num_workers=args.num_workers)
 
-    print(f'Finish Evaluating.. Test Accuracy : {test_acc}% | Test Loss : {test_los}% | top_1_err : {top_1_err}% | top_5_err : {top_5_err}%')
+    print(f'Finish Evaluating.. Test Accuracy : {test_acc}% | Test Loss : {test_los}% | top_1_err : {test_top_1_err}% | top_5_err : {test_top_5_err}%')
+
+    # write the result of testing dataset
+    utils.result_note(args.model, args.step, test_acc, test_los, test_top_1_err, test_top_5_err)

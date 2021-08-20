@@ -19,10 +19,10 @@ import utils
 # Setting runable GPUs
 os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
-def evaluate(device, criterion, batch_size, num_workers):
+def evaluate(name, step, device, batch_size, num_workers):
 
     PATH = './checkpoint/'
-    model = torch.load(PATH + 'model.pt').to(device)
+    model = torch.load(PATH + str(name) + '_' + str(step) + '_' + 'model.pt').to(device)
 
     model.eval()
 
@@ -32,6 +32,8 @@ def evaluate(device, criterion, batch_size, num_workers):
     correct = 0
     correct_5 = 0
     total = 0
+
+    criterion = nn.CrossEntropyLoss()
 
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(testloader):
