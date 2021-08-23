@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchsummary 
 
 cfg = {
-    'RES11': ['BasicBlock', [2, 2, 2, 2]],
+    'RES18': ['BasicBlock', [2, 2, 2, 2]],
     'RES34': ['BasicBlock', [3, 4, 6, 3]],
     'RES50': ['Bottleneck', [3, 4, 6, 3]],
     'RES101': ['Bottleneck', [3, 4, 23, 3]],
@@ -37,7 +38,6 @@ class BasicBlock(nn.Module):
         out = F.relu(out)
         return out
 
-
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -70,25 +70,31 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, name):
         super(ResNet, self).__init__()
         self.in_planes = 64
+        self.num_classes = 10
+
+        self.block_name = eval(cfg[name][0])
+        self.block_feature = cfg[name][1]
+        
+        print(self.block_name, self.block_feature)
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3,
                                stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.layer1 = self._make_layer(self.block_name, self.block_feature[0], 64, stride=1)
+        self.layer2 = self._make_layer(self.block_name, self.block_feature[1], 128, stride=2)
+        self.layer3 = self._make_layer(self.block_name, self.block_feature[2], 256, stride=2)
+        self.layer4 = self._make_layer(self.block_name, self.block_feature[3], 512, stride=2)
+        self.linear = nn.Linear(512*self.block_name.expansion, self.num_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
+    def _make_layer(self, block_name, feature, planes, stride):
+        strides = [stride] + [1]*(feature-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
+            layers.append(block_name(self.in_planes, planes, stride))
+            self.in_planes = planes * block_name.expansion
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -102,30 +108,12 @@ class ResNet(nn.Module):
         out = self.linear(out)
         return out
 
-
-def ResNet18():
-    return ResNet(BasicBlock, [2, 2, 2, 2])
-
-
-def ResNet34():
-    return ResNet(BasicBlock, [3, 4, 6, 3])
-
-
-def ResNet50():
-    return ResNet(Bottleneck, [3, 4, 6, 3])
-
-
-def ResNet101():
-    return ResNet(Bottleneck, [3, 4, 23, 3])
-
-
-def ResNet152():
-    return ResNet(Bottleneck, [3, 8, 36, 3])
-
-
 def test():
-    net = ResNet18()
-    y = net(torch.randn(1, 3, 32, 32))
-    print(y.size())
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = ResNet('RES152')
+    model = model.to(device)
+
+    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
 
 # test()

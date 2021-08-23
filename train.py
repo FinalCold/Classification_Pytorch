@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     # for using multi GPUs
     model = vgg.VGG(args.model)
-    # model = resnet.ResNet50()
+    # model = resnet.ResNet(args.model)
 
     model = model.to(device)
 
