@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchsummary 
+import torchsummary
+from thop import profile
 
 cfg = {
     'RES18': ['BasicBlock', [2, 2, 2, 2]],
@@ -112,8 +113,15 @@ def test():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = ResNet('RES152')
-    model = model.to(device)
 
-    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+    inp = torch.randn(1, 3, 32, 32)
 
-# test()
+    macs , params = profile(model, inputs=(inp,))
+    # macs, params = clever_format([macs, params], "%.3f")
+
+    # torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+
+    print(macs, params)
+
+if __name__ == '__main__':
+    test()

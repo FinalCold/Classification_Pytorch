@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torchsummary
+from thop import profile
+from thop import clever_format
+
 
 cfg = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
@@ -54,8 +57,15 @@ def test():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = VGG('VGG19')
-    model = model.to(device)
+    # model = model.to(device)
+    inp = torch.randn(1, 3, 32, 32)
 
-    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+    macs , params = profile(model, inputs=(inp,))
+    # macs, params = clever_format([macs, params], "%.3f")
 
-# test()
+    # torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+
+    print(macs, params)
+
+if __name__ == '__main__':
+    test()
