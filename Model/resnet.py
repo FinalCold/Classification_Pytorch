@@ -2,6 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+cfg = {
+    'RES11': ['BasicBlock', [2, 2, 2, 2]],
+    'RES34': ['BasicBlock', [3, 4, 6, 3]],
+    'RES50': ['Bottleneck', [3, 4, 6, 3]],
+    'RES101': ['Bottleneck', [3, 4, 23, 3]],
+    'RES152': ['Bottleneck', [3, 8, 36, 3]],
+}
 
 class BasicBlock(nn.Module):
     expansion = 1
