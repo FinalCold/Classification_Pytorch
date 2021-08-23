@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchsummary
 
 cfg = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
@@ -50,8 +51,11 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 def test():
-    network = VGG('VGG16')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    print(network)
+    model = VGG('VGG19')
+    model = model.to(device)
+
+    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
 
 # test()

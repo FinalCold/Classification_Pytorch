@@ -22,13 +22,11 @@ import dataset
 import utils
 import test
 
-# Setting runable GPUs
-os.environ["CUDA_VISIBLE_DEVICES"] = '5'
-
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
+    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switching Model = 0 : VGG, 1 : RES')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
@@ -36,7 +34,7 @@ def parse_args():
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
-    parser.add_argument('--gpu', '-g', default=0, type=int, help='Choose a specific GPU by ID')
+    parser.add_argument('--gpu', '-g', default=5, type=int, help='Choose a specific GPU by ID')
 
     return parser.parse_args()
 
@@ -126,6 +124,9 @@ if __name__ == '__main__':
     # Parsing arguments
     args = parse_args()
 
+    # Setting runable GPUs
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+
     # Setting the GPU by ID
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -145,8 +146,10 @@ if __name__ == '__main__':
     print('==> Building Model..')
 
     # for using multi GPUs
-    model = vgg.VGG(args.model)
-    # model = resnet.ResNet(args.model)
+    if args.flag == 0:
+        model = vgg.VGG(args.model)
+    elif args.flag == 1:
+        model = resnet.ResNet(args.model)
 
     model = model.to(device)
 

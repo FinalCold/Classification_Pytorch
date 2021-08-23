@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import math
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -131,3 +131,19 @@ def result_note(name, step, acc, los, top_1_err, top_5_err):
     print(f"Model : {name} Step : {step} >> File write Complete !!")
 
     f.close()
+
+def result_cal(name):
+
+    PATH = '/home/chanjong/dev/Classification_Pytorch/result/'
+    Model_name = str(name)
+
+    score = []
+
+    with open(PATH + Model_name + '_result.txt', 'r') as f:
+        for line in f.readlines():
+            l = float(line.strip().split('\t')[0])
+            score.append(l)
+
+    mean = np.mean(score)
+    std = np.std(score)
+    print('Mean : ', mean, 'Std : ', std)
