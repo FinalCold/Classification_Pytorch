@@ -8,6 +8,7 @@ cfg = {
     'RES18': ['BasicBlock', [2, 2, 2, 2]],
     'RES34': ['BasicBlock', [3, 4, 6, 3]],
     'RES50': ['Bottleneck', [3, 4, 6, 3]],
+    'RES50_Basic': ['BasicBlock', [3, 4, 6, 3]],
     'RES101': ['Bottleneck', [3, 4, 23, 3]],
     'RES152': ['Bottleneck', [3, 8, 36, 3]],
 }
@@ -112,16 +113,15 @@ class ResNet(nn.Module):
 def test():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ResNet('RES152')
+    model = ResNet('RES50_Basic')
+    model = model.to(device)
 
-    inp = torch.randn(1, 3, 32, 32)
+    inp = torch.randn(1, 3, 32, 32).to(device)
+ 
+    torchsummary.summary(model, input_size=(3, 32 ,32))
 
     macs , params = profile(model, inputs=(inp,))
-    # macs, params = clever_format([macs, params], "%.3f")
-
-    # torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
-
-    print(macs, params)
+    print('MACs : ', macs, 'Params : ', params)
 
 if __name__ == '__main__':
     test()

@@ -18,6 +18,7 @@ import sys
 
 from Model import vgg
 from Model import resnet
+from Model import mobilenet
 import dataset
 import utils
 import test
@@ -26,7 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
-    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switching Model = 0 : VGG, 1 : RES')
+    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switching Model = 0 : VGG, 1 : RES, 2 : MNetV2')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
@@ -150,13 +151,15 @@ if __name__ == '__main__':
         model = vgg.VGG(args.model)
     elif args.flag == 1:
         model = resnet.ResNet(args.model)
+    elif args.flag == 2:
+        model = mobilenet.MobileNetV2()
 
     model = model.to(device)
 
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
-    torchsummary.summary(model, input_size=(3, 32 ,32), device=device.type)
+    torchsummary.summary(model, input_size=(3, 32 ,32))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
