@@ -19,6 +19,7 @@ import sys
 from Model import vgg
 from Model import resnet
 from Model import mobilenet
+from Model import resnext
 import dataset
 import utils
 import test
@@ -27,12 +28,14 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
-    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switching Model = 0 : VGG, 1 : RES, 2 : MNetV2')
+    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switch Model = 0 : VGG, 1 : RES, 2 : MobileV2, 3 : ResNeXt')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
     parser.add_argument('--epoch', '-e', default=200, type=int, help='Number of Epoch')
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
+    parser.add_argument('--op_flag', '-op', default=0, type=int, help='To Switch LR Optimizer = 0 : SGD, 1 : RMSprop, 2 : Adam')
+    parser.add_argument('--sh_flag', '-sh', default=0, type=int, help='To Switch LR Scheduler = 0 : MultiStep, 1 : Cosine, 2 : Exponential')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
     parser.add_argument('--gpu', '-g', default=5, type=int, help='Choose a specific GPU by ID')
@@ -153,6 +156,8 @@ if __name__ == '__main__':
         model = resnet.ResNet(args.model)
     elif args.flag == 2:
         model = mobilenet.MobileNetV2()
+    elif args.flag == 3:
+        model = resnext.ResNeXt(args.model)
 
     model = model.to(device)
 
@@ -162,15 +167,29 @@ if __name__ == '__main__':
     torchsummary.summary(model, input_size=(3, 32 ,32))
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[70, 150], gamma=0.3)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-3)
+
+    # Optimizer
+    if args.op_flag == 0:
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+    elif args.op_flag == 1:
+        optimizer = optim.RMSprop(model.parameters(), lr=args.lr)
+    elif args.op_flag == 2:
+        optimizer = optim.Adam(model.parameters(), lr=args.lr)
+
+    # Scheduler
+    if args.sh_flag == 0:
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[70, 150], gamma=0.3)
+    elif args.sh_flag == 1:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epoch)
+    elif args.sh_flag == 2:
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
 
     # Using Tensorboard to visualization
     writer = SummaryWriter('runs/'+ str(args.model) + '_' + str(args.step) + '_' + str(args.epoch) + '_' + str(args.lr) + '/')
 
     start_time = time.time()
     for epoch in range(1, args.epoch + 1):
+        epoch_time = time.time()
         print('Epoch : %d' % epoch)
 
         train_acc, train_los = train()
@@ -179,8 +198,12 @@ if __name__ == '__main__':
         log_lr = scheduler.optimizer.param_groups[0]['lr']
 
         save_ckpt(val_acc, top_1_err, top_5_err)
+
         end_time = time.time()
-        print(f'Current Epoch Training Time : {end_time-start_time}s')
+
+        curr_time = end_time - epoch_time
+
+        print(f'Current Epoch Training Time : {curr_time}s')
         scheduler.step()
 
         writer.add_scalar('Loss/train', train_los, epoch)
@@ -193,7 +216,9 @@ if __name__ == '__main__':
 
     writer.close()
 
-    print(f'Finish Training.. Total Training Time : {end_time-start_time}s, Best Val Accuracy : {best_acc}%')
+    total_train_time = end_time-start_time
+
+    print(f'Finish Training.. Total Training Time : {total_train_time}s, Best Val Accuracy : {best_acc}%')
     print(f'top-k error of best weight of model, top-1 err : {best_top_1_err}%, top-5 err : {best_top_5_err}%')
 
     # Evaluate the test dataset from the best accuracy of validation model.
@@ -206,4 +231,4 @@ if __name__ == '__main__':
     print(f'Finish Evaluating.. Test Accuracy : {test_acc}% | Test Loss : {test_los}% | top_1_err : {test_top_1_err}% | top_5_err : {test_top_5_err}%')
 
     # write the result of testing dataset
-    utils.result_note(args.model, args.step, test_acc, test_los, test_top_1_err, test_top_5_err)
+    utils.result_note(args.model, args.step, test_acc, test_los, test_top_1_err, test_top_5_err, total_train_time)

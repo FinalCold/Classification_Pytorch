@@ -31,12 +31,14 @@ def train_val_dataset(batch_size, num_workers, valid_size=0.1, shuffle=True):
     indices = list(range(n_train))
     split = int(np.floor(valid_size * n_train))
 
+    if shuffle:
+        np.random.shuffle(indices)
+
     train_idx, valid_idx = indices[split:], indices[:split]
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    if shuffle:
-        np.random.shuffle(indices)
+ 
 
     trainloader = torch.utils.data.DataLoader(
         dataset=trainset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers)

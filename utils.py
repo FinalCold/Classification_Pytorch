@@ -119,14 +119,14 @@ def format_time(seconds):
         f = '0ms'
     return f
 
-def result_note(name, step, acc, los, top_1_err, top_5_err):
+def result_note(name, step, acc, los, top_1_err, top_5_err, train_time):
     if not os.path.isdir('result'):
         os.mkdir('result')
     PATH = './result/'
 
     f = open(PATH + str(name) + '_result.txt', 'a')
 
-    f.write(str(acc) + '\t' + str(los) + '\t' + str(top_1_err) + '\t' + str(top_5_err) + '\n')
+    f.write(str(acc) + '\t' + str(los) + '\t' + str(top_1_err) + '\t' + str(top_5_err) + '\t' + str(train_time) + '\n')
 
     print(f"Model : {name} Step : {step} >> File write Complete !!")
 
