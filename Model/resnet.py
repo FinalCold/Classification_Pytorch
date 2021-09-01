@@ -112,7 +112,7 @@ class ResNet(nn.Module):
 def test():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ResNet('RES50_Basic')
+    model = ResNet('RES50')
     model = model.to(device)
 
     inp = torch.randn(1, 3, 32, 32).to(device)

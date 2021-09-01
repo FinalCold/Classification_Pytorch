@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--lr', '-l', default=1e-1, type=float, help='learning rate')
     parser.add_argument('--op_flag', '-op', default=0, type=int, help='To Switch LR Optimizer = 0 : SGD, 1 : RMSprop, 2 : Adam')
     parser.add_argument('--sh_flag', '-sh', default=0, type=int, help='To Switch LR Scheduler = 0 : MultiStep, 1 : Cosine, 2 : Exponential')
+    parser.add_argument('--cardinality', '-card', default=16, type=int, help='When using ResNeXt input Cardinality')
+    parser.add_argument('--bottleneck_width', '-bw', default=64, type=int, help='When using ResNeXt input bottleneck_width')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
     parser.add_argument('--gpu', '-g', default=5, type=int, help='Choose a specific GPU by ID')
@@ -157,7 +159,7 @@ if __name__ == '__main__':
     elif args.flag == 2:
         model = mobilenet.MobileNetV2()
     elif args.flag == 3:
-        model = resnext.ResNeXt(args.model)
+        model = resnext.ResNeXt(args.model, args.cardinality, args.bottleneck_width)
 
     model = model.to(device)
 
@@ -178,7 +180,7 @@ if __name__ == '__main__':
 
     # Scheduler
     if args.sh_flag == 0:
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[70, 150], gamma=0.3)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 225], gamma=0.1)
     elif args.sh_flag == 1:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epoch)
     elif args.sh_flag == 2:
