@@ -186,7 +186,7 @@ if __name__ == '__main__':
     elif args.sh_flag == 2:
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
 
-    # Using Tensorboard to visualization
+    # Using Tensorboard for visualization
     writer = SummaryWriter('runs/'+ str(args.model) + '_' + str(args.step) + '_' + str(args.epoch) + '_' + str(args.lr) + '/')
 
     start_time = time.time()
