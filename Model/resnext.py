@@ -89,7 +89,7 @@ def test():
     os.environ["CUDA_VISIBLE_DEVICES"] = '5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ResNeXt('ResNeXt101', cardinality=32, width=4)
+    model = ResNeXt('ResNeXt50', cardinality=4, width=32)
     model = model.to(device)
 
     inp = torch.randn(1, 3, 32, 32).to(device)
