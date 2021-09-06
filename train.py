@@ -28,7 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
-    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switch Model = 0 : VGG, 1 : RES, 2 : MobileV2, 3 : ResNeXt')
+    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switch Model = 0 : VGG, 1 : RES, 2 : MobileV2, 3 : ResNeXt, 4: BotNet')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
