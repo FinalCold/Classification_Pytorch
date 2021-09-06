@@ -20,6 +20,7 @@ from Model import vgg
 from Model import resnet
 from Model import mobilenet
 from Model import resnext
+from Model import botnet
 import dataset
 import utils
 import test
@@ -160,6 +161,8 @@ if __name__ == '__main__':
         model = mobilenet.MobileNetV2()
     elif args.flag == 3:
         model = resnext.ResNeXt(args.model, args.cardinality, args.bottleneck_width)
+    elif args.flag == 4:
+        model = botnet.BoTNet(args.model)
 
     model = model.to(device)
 

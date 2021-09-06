@@ -111,7 +111,7 @@ class BoTNet(nn.Module):
         for stride in strides:
             layers.append(block_name(self.in_planes, planes, stride, heads=heads, mhsa=mhsa, resolution=self.resolution))
             if stride == 2:
-                print(self.resolution)
+                # print(self.resolution)
                 self.resolution[:] = [int(x / 2) for x in self.resolution]
             self.in_planes = planes * block_name.expansion
         return nn.Sequential(*layers)

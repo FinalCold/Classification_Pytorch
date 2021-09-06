@@ -2,7 +2,7 @@
 Various Classification Models using Pytorch 
 
 ## Support Model
-VGGNet, ResNet, MobileNet V2, ResNeXt..
+VGGNet, ResNet, MobileNet V2, ResNeXt, BoTNet..
 
 ## Requirements
 Python 3.6 or later, torch >= 1.5
