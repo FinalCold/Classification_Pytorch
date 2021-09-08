@@ -41,6 +41,7 @@ class Stage(nn.Module):
 
         mid_planes = out_planes // 4
         g = 1 if in_planes == 24 else group
+
         self.conv1 = nn.Conv2d(in_planes, mid_planes, kernel_size=1, groups=g, bias=False)
         self.bn1 = nn.BatchNorm2d(mid_planes)
         self.shuffle1 = ShuffleBlock(groups=g)
@@ -54,13 +55,20 @@ class Stage(nn.Module):
             self.shortcut = nn.Sequential(nn.AvgPool2d(3, stride=stride, padding=1))
 
     def forward(self, x):
+        print('A : ', x.size())
         out = F.relu(self.bn1(self.conv1(x)))
+        print('B : ', out.size())
         if self.shuffle:
             out = self.shuffle1(out)
+        print('C : ', out.size())
         out = F.relu(self.bn2(self.conv2(out)))
+        print('D : ', out.size())
         out = self.bn3(self.conv3(out))
+        print('E : ', out.size())
         res = self.shortcut(x)
+        print('F : ', res.size())
         out = F.relu(torch.cat([out, res], 1)) if self.stride == 2 else F.relu(out + res)
+        print('G : ', out.size())
 
         return out
 
@@ -81,7 +89,7 @@ class ShuffleNet(nn.Module):
         
         # When using ImageNet dataset
         # self.maxpool = nn.MaxPool2d(3, stride=2)
-        self.bn1 = nn.BatchNorm2d(24)
+        self.bn1 = nn.BatchNorm2d(self.in_planes)
         self.stage2 = self._make_layer(4, self.out_plane[0], self.group, shuffle)
         self.stage3 = self._make_layer(8, self.out_plane[1], self.group, shuffle)
         self.stage4 = self._make_layer(4, self.out_plane[2], self.group, shuffle)
@@ -94,7 +102,8 @@ class ShuffleNet(nn.Module):
             stride = 2 if i == 0 else 1
 
             layers.append(Stage(self.in_planes, out_planes, stride=stride, group=group, shuffle=shuffle))
-            self.in_planes = out_planes
+            
+        self.in_planes = out_planes
         return nn.Sequential(*layers)
 
     def forward(self, x):
