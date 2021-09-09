@@ -21,6 +21,7 @@ from Model import resnet
 from Model import mobilenet
 from Model import resnext
 from Model import botnet
+from Model import shufflenet
 import dataset
 import utils
 import test
@@ -29,7 +30,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model', '-m', default='VGG19', type=str, help='Specify Model name')
-    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switch Model = 0 : VGG, 1 : RES, 2 : MobileV2, 3 : ResNeXt, 4: BotNet')
+    parser.add_argument('--flag', '-f', default=0, type=int, help='To Switch Model = 0 : VGG, 1 : RES, 2 : MobileV2, 3 : ResNeXt, 4: BotNet, 5: ShuffleNet')
     parser.add_argument('--step', '-s', default=1, type=int, help='Model Step')
     parser.add_argument('--batch_size', '-b', default=2048, type=int, help='Training batch size')
     parser.add_argument('--num_workers', '-n', default=2, type=int, help='Number of workers')
@@ -39,6 +40,9 @@ def parse_args():
     parser.add_argument('--sh_flag', '-sh', default=0, type=int, help='To Switch LR Scheduler = 0 : MultiStep, 1 : Cosine, 2 : Exponential')
     parser.add_argument('--cardinality', '-card', default=16, type=int, help='When using ResNeXt input Cardinality')
     parser.add_argument('--bottleneck_width', '-bw', default=64, type=int, help='When using ResNeXt input bottleneck_width')
+    parser.add_argument('--group', '-gp', default=1, type=int, help='When using ShuffleNet input Group Number')
+    parser.add_argument('--shuffle', '-sf', default=1, type=int, help='When using ShuffleNet input 1 for shuffle or 0 for False')
+    parser.add_argument('--scale', '-sc', default=1, type=float, help='When using ShuffleNet input Scaling Factor')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--output_dir', '-o', default='./result/train/', type=str, help='Override the output directory')
     parser.add_argument('--gpu', '-g', default=5, type=int, help='Choose a specific GPU by ID')
@@ -163,6 +167,8 @@ if __name__ == '__main__':
         model = resnext.ResNeXt(args.model, args.cardinality, args.bottleneck_width)
     elif args.flag == 4:
         model = botnet.BoTNet(args.model)
+    elif args.flag == 5:
+        model = shufflenet.ShuffleNet(args.model, group=args.group, shuffle=args.shuffle, scale=args.scale)
 
     model = model.to(device)
 
@@ -183,7 +189,7 @@ if __name__ == '__main__':
 
     # Scheduler
     if args.sh_flag == 0:
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 225], gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 150], gamma=0.1)
     elif args.sh_flag == 1:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epoch)
     elif args.sh_flag == 2:
@@ -236,4 +242,4 @@ if __name__ == '__main__':
     print(f'Finish Evaluating.. Test Accuracy : {test_acc}% | Test Loss : {test_los}% | top_1_err : {test_top_1_err}% | top_5_err : {test_top_5_err}%')
 
     # write the result of testing dataset
-    utils.result_note(args.model, args.step, test_acc, test_los, test_top_1_err, test_top_5_err, total_train_time)
+    utils.result_note(args.model, args.step, test_acc, test_los, test_top_1_err, test_top_5_err, total_train_time, args.group, args.shuffle, args.scale)

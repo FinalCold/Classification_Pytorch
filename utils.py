@@ -119,12 +119,14 @@ def format_time(seconds):
         f = '0ms'
     return f
 
-def result_note(name, step, acc, los, top_1_err, top_5_err, train_time):
+def result_note(name, step, acc, los, top_1_err, top_5_err, train_time, group, shuffle, scale):
     if not os.path.isdir('result'):
         os.mkdir('result')
     PATH = './result/'
-
-    f = open(PATH + str(name) + '_result.txt', 'a')
+    if name == 'ShuffleNet':
+        f = open(PATH + str(name) + '_' + group + '_' + shuffle + '_' + scale + '_result.txt', 'a')
+    else:
+        f = open(PATH + str(name) + '_result.txt', 'a')
 
     f.write(str(acc) + '\t' + str(los) + '\t' + str(top_1_err) + '\t' + str(top_5_err) + '\t' + str(train_time) + '\n')
 

@@ -7,14 +7,14 @@ from thop import profile
 import os
 
 cfg = {
-    'ShuffleNet' : [1, 2, 3, 4, 5],
+    'ShuffleNet' : [1, 2, 3, 4, 8],
 }
 alias = {
     '1' : [144, 288, 576],
     '2' : [200, 400, 800],
     '3' : [240, 480, 960],
     '4' : [272, 544, 1088],
-    '5' : [384, 768, 1536],
+    '8' : [384, 768, 1536],
 }
 
 class ShuffleBlock(nn.Module):
@@ -55,20 +55,13 @@ class Stage(nn.Module):
             self.shortcut = nn.Sequential(nn.AvgPool2d(3, stride=stride, padding=1))
 
     def forward(self, x):
-        print('A : ', x.size())
         out = F.relu(self.bn1(self.conv1(x)))
-        print('B : ', out.size())
         if self.shuffle:
             out = self.shuffle1(out)
-        print('C : ', out.size())
         out = F.relu(self.bn2(self.conv2(out)))
-        print('D : ', out.size())
         out = self.bn3(self.conv3(out))
-        print('E : ', out.size())
         res = self.shortcut(x)
-        print('F : ', res.size())
         out = F.relu(torch.cat([out, res], 1)) if self.stride == 2 else F.relu(out + res)
-        print('G : ', out.size())
 
         return out
 
@@ -82,17 +75,23 @@ class ShuffleNet(nn.Module):
 
         self.in_planes = 24
         self.num_classes = 10
+        if group in cfg[name]:
+            self.out_plane = alias[str(group)]
+        else:
+            raise ValueError("Group {} is not Supported".format(group))
 
-        self.out_plane = alias[str(cfg[name][int(group) - 1])]
+        self.feature_n = [4, 8, 4]
+        if scale != 1:
+            self.feature_n = [int(i * scale) for i in self.feature_n]
 
         self.conv1 = nn.Conv2d(3, self.in_planes, kernel_size=3, stride=1, padding=1, bias=False)
         
         # When using ImageNet dataset
         # self.maxpool = nn.MaxPool2d(3, stride=2)
         self.bn1 = nn.BatchNorm2d(self.in_planes)
-        self.stage2 = self._make_layer(4, self.out_plane[0], self.group, shuffle)
-        self.stage3 = self._make_layer(8, self.out_plane[1], self.group, shuffle)
-        self.stage4 = self._make_layer(4, self.out_plane[2], self.group, shuffle)
+        self.stage2 = self._make_layer(self.feature_n[0], self.out_plane[0], self.group, shuffle)
+        self.stage3 = self._make_layer(self.feature_n[1], self.out_plane[1], self.group, shuffle)
+        self.stage4 = self._make_layer(self.feature_n[2], self.out_plane[2], self.group, shuffle)
         self.avg_pool = nn.AvgPool2d(4)
         self.linear = nn.Linear(self.out_plane[2], self.num_classes)
 
@@ -100,18 +99,17 @@ class ShuffleNet(nn.Module):
         layers = []
         for i in range(feature_n):
             stride = 2 if i == 0 else 1
+            cat_planes = self.in_planes if i == 0 else 0
 
-            layers.append(Stage(self.in_planes, out_planes, stride=stride, group=group, shuffle=shuffle))
+            layers.append(Stage(self.in_planes, out_planes - cat_planes, stride=stride, group=group, shuffle=shuffle))
             
-        self.in_planes = out_planes
+            self.in_planes = out_planes
+
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        print('1 : ', x.size())
         out = F.relu(self.bn1(self.conv1(x)))
-        print('2 : ', out.size())
         out = self.stage2(out)
-        print('3 : ', out.size())
         out = self.stage3(out)
         out = self.stage4(out)
         out = self.avg_pool(out)
@@ -125,7 +123,7 @@ def test():
     os.environ["CUDA_VISIBLE_DEVICES"] = '5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ShuffleNet('ShuffleNet', group=2, shuffle=False)
+    model = ShuffleNet('ShuffleNet', group=3, shuffle=1, scale=2)
     model = model.to(device)
 
     # print(model)
