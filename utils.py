@@ -124,7 +124,7 @@ def result_note(name, step, acc, los, top_1_err, top_5_err, train_time, group, s
         os.mkdir('result')
     PATH = './result/'
     if name == 'ShuffleNet':
-        f = open(PATH + str(name) + '_' + group + '_' + shuffle + '_' + scale + '_result.txt', 'a')
+        f = open(PATH + str(name) + '_' + str(group) + '_' + str(shuffle) + '_' + str(scale) + '_result.txt', 'a')
     else:
         f = open(PATH + str(name) + '_result.txt', 'a')
 

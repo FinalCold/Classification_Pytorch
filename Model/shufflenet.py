@@ -23,12 +23,12 @@ class ShuffleBlock(nn.Module):
         self.groups = groups
 
     def forward(self, x):
-        batch, channels, height, width = x.size()
-        channels_per_group = channels // self.groups
+        batch, n_channels, height, width = x.size()
+        channels_per_group = n_channels // self.groups
 
-        x = x.view(batch, self.groups, channels_per_group, height, width)
-        x = torch.transpose(x, 1, 2).contiguous()
-        x = x.view(batch, channels, height, width)
+        x = x.reshape(batch, channels_per_group, self.groups, height, width)
+        x = x.permute(0, 2, 1, 3, 4)
+        x = x.reshape(batch, n_channels, height, width)
 
         return x
 
@@ -118,12 +118,16 @@ class ShuffleNet(nn.Module):
 
         return out
 
+class ShufflenetV2(nn.Module):
+    def __init__(self) -> None:
+        super(ShufflenetV2, self).__init__()
+        
 
 def test():
     os.environ["CUDA_VISIBLE_DEVICES"] = '5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ShuffleNet('ShuffleNet', group=3, shuffle=1, scale=2)
+    model = ShuffleNet('ShuffleNet', group=3, shuffle=1, scale=1)
     model = model.to(device)
 
     # print(model)
