@@ -127,7 +127,7 @@ def test():
     os.environ["CUDA_VISIBLE_DEVICES"] = '5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = ShuffleNet('ShuffleNet', group=3, shuffle=1, scale=1)
+    model = ShuffleNet('ShuffleNet', group=1, shuffle=1, scale=1)
     model = model.to(device)
 
     # print(model)
