@@ -19,14 +19,23 @@ alias = {
 }
 
 aliasV2 = {
-    '0.5' : [48, 96, 192],
-    '1'   : [116, 232, 464],
-    '1.5' : [176, 352, 704],
-    '2'   : [244, 488, 976],
+    '0.5' : [48, 96, 192, 1024],
+    '1'   : [116, 232, 464, 1024],
+    '1.5' : [176, 352, 704, 1024],
+    '2'   : [244, 488, 976, 2048],
 }
 
+class SplitBlock(nn.Module):
+    def __init__(self, ratio):
+        super(SplitBlock, self).__init__()
+        self.ratio = ratio
+
+    def forward(self, x):
+        c = int(x.size(1) * self.ratio)
+        return x[:, :c, :, :], x[:, c:, :, :]
+
 class ShuffleBlock(nn.Module):
-    def __init__(self, groups) -> None:
+    def __init__(self, groups=2) -> None:
         super(ShuffleBlock, self).__init__()
         self.groups = groups
 
@@ -138,9 +147,9 @@ class ShuffleNet(nn.Module):
         # When using ImageNet dataset
         # self.maxpool = nn.MaxPool2d(3, stride=2)
         self.bn1 = nn.BatchNorm2d(self.in_planes)
-        self.stage2 = self._make_layer(self.feature_n[0], self.out_plane[0], shuffle)
-        self.stage3 = self._make_layer(self.feature_n[1], self.out_plane[1], shuffle)
-        self.stage4 = self._make_layer(self.feature_n[2], self.out_plane[2], shuffle)
+        self.stage2 = self._make_layer(self.feature_n[0], self.out_plane[0], group=group, shuffle=shuffle)
+        self.stage3 = self._make_layer(self.feature_n[1], self.out_plane[1], group=group, shuffle=shuffle)
+        self.stage4 = self._make_layer(self.feature_n[2], self.out_plane[2], group=group, shuffle=shuffle)
         self.avg_pool = nn.AvgPool2d(4)
         self.linear = nn.Linear(self.out_plane[2], self.num_classes)
 
@@ -150,7 +159,7 @@ class ShuffleNet(nn.Module):
             stride = 2 if i == 0 else 1
             cat_planes = self.in_planes if i == 0 else 0
 
-            layers.append(StageV2(self.in_planes, out_planes - cat_planes, stride=stride, group=group, shuffle=shuffle))
+            layers.append(Stage(self.in_planes, out_planes - cat_planes, stride=stride, group=group, shuffle=shuffle))
             
             self.in_planes = out_planes
 
@@ -185,11 +194,11 @@ class ShuffleNetV2(nn.Module):
         # When using ImageNet dataset
         # self.maxpool = nn.MaxPool2d(3, stride=2)
         self.bn1 = nn.BatchNorm2d(self.in_planes)
-        self.stage2 = self._make_layer(4, self.out_plane[0], shuffle)
-        self.stage3 = self._make_layer(8, self.out_plane[1], shuffle)
-        self.stage4 = self._make_layer(4, self.out_plane[2], shuffle)
-        self.conv5 = nn.Conv2d(self.out_plane[2], 1024, kernel_size=1, stride=1, bias=False)
-        self.bn5 = nn.BatchNorm2d(1024)
+        self.stage2 = self._make_layer(3, self.out_plane[0], shuffle)
+        self.stage3 = self._make_layer(7, self.out_plane[1], shuffle)
+        self.stage4 = self._make_layer(3, self.out_plane[2], shuffle)
+        self.conv5 = nn.Conv2d(self.out_plane[2], self.out_plane[3], kernel_size=1, stride=1, bias=False)
+        self.bn5 = nn.BatchNorm2d(self.out_plane[3])
         self.avg_pool = nn.AvgPool2d(4)
         self.linear = nn.Linear(self.out_plane[2], self.num_classes)
 
@@ -222,8 +231,8 @@ def test():
     os.environ["CUDA_VISIBLE_DEVICES"] = '5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # model = ShuffleNet('ShuffleNet', group=1, shuffle=1, scale=1)
-    model = ShuffleNetV2('ShuffleNetV2', c_size=1, shuffle=0)
+    model = ShuffleNet('ShuffleNet', group=1, shuffle=1, scale=1)
+    # model = ShuffleNetV2('ShuffleNetV2', c_size=1, shuffle=0)
     model = model.to(device)
     
     # print(model)
