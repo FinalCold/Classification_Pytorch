@@ -170,7 +170,7 @@ if __name__ == '__main__':
     elif args.flag == 5:
         model = shufflenet.ShuffleNet(args.model, group=args.group, shuffle=args.shuffle, scale=args.scale)
     elif args.flag == 6:
-        model = shufflenet.ShuffleNetV2(args.model, group=args.group, shuffle=args.shuffle)
+        model = shufflenet.ShuffleNetV2(args.model, c_size=args.group, shuffle=args.shuffle)
 
     model = model.to(device)
 
