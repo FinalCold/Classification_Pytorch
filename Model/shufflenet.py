@@ -85,17 +85,15 @@ class Stage(nn.Module):
         return out
 
 class StageV2(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, shuffle) -> None:
+    def __init__(self, in_planes, out_planes, shuffle) -> None:
         super(StageV2, self).__init__()
 
-        self.stride = stride
         self.shuffle = shuffle
-        # print(out_planes)
 
         mid_planes = out_planes // 2
 
         # left layers
-        self.convL1 = nn.Conv2d(in_planes, in_planes, kernel_size=3, stride=stride, padding=1, groups=in_planes, bias=False)
+        self.convL1 = nn.Conv2d(in_planes, in_planes, kernel_size=3, stride=2, padding=1, groups=in_planes, bias=False)
         self.bnL1 = nn.BatchNorm2d(in_planes)
         self.convL2 = nn.Conv2d(in_planes, mid_planes, kernel_size=1, bias=False)
         self.bnL2 = nn.BatchNorm2d(mid_planes)
@@ -103,7 +101,7 @@ class StageV2(nn.Module):
         # right layers
         self.convR1 = nn.Conv2d(in_planes, mid_planes, kernel_size=1, bias=False)
         self.bnR1 = nn.BatchNorm2d(mid_planes)
-        self.convR2 = nn.Conv2d(mid_planes, mid_planes, kernel_size=3, stride=stride, padding=1, groups=mid_planes, bias=False)
+        self.convR2 = nn.Conv2d(mid_planes, mid_planes, kernel_size=3, stride=2, padding=1, groups=mid_planes, bias=False)
         self.bnR2 = nn.BatchNorm2d(mid_planes)
         self.convR3 = nn.Conv2d(mid_planes, mid_planes, kernel_size=1, bias=False)
         self.bnR3 = nn.BatchNorm2d(mid_planes)
@@ -118,12 +116,7 @@ class StageV2(nn.Module):
         right = self.bnR2(self.convR2(right))
         right = F.relu(self.bnR3(self.convR3(right)))
 
-        # print(left.size())
-        # print(right.size())
-
         out = torch.cat([left, right], 1)
-
-        # print(out.size())
 
         if self.shuffle:
             out = self.shuffle1(out)
@@ -131,20 +124,23 @@ class StageV2(nn.Module):
         return out
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_channels, split_ratio=0.5):
+    def __init__(self, in_planes, split_ratio=0.5, shuffle=True):
         super(BasicBlock, self).__init__()
+        self.shuffle = shuffle
+
         self.split = SplitBlock(split_ratio)
-        in_channels = int(in_channels * split_ratio)
-        self.conv1 = nn.Conv2d(in_channels, in_channels,
+        in_planes = int(in_planes * split_ratio)
+
+        self.conv1 = nn.Conv2d(in_planes, in_planes,
                                kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.conv2 = nn.Conv2d(in_channels, in_channels,
-                               kernel_size=3, stride=1, padding=1, groups=in_channels, bias=False)
-        self.bn2 = nn.BatchNorm2d(in_channels)
-        self.conv3 = nn.Conv2d(in_channels, in_channels,
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.conv2 = nn.Conv2d(in_planes, in_planes,
+                               kernel_size=3, stride=1, padding=1, groups=in_planes, bias=False)
+        self.bn2 = nn.BatchNorm2d(in_planes)
+        self.conv3 = nn.Conv2d(in_planes, in_planes,
                                kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(in_channels)
-        self.shuffle = ShuffleBlock()
+        self.bn3 = nn.BatchNorm2d(in_planes)
+        self.shuffle1 = ShuffleBlock()
 
     def forward(self, x):
         x1, x2 = self.split(x)
@@ -152,7 +148,10 @@ class BasicBlock(nn.Module):
         out = self.bn2(self.conv2(out))
         out = F.relu(self.bn3(self.conv3(out)))
         out = torch.cat([x1, out], 1)
-        out = self.shuffle(out)
+
+        if self.shuffle:
+            out = self.shuffle1(out)
+
         return out
 
 class ShuffleNet(nn.Module):
@@ -225,9 +224,9 @@ class ShuffleNetV2(nn.Module):
         # When using ImageNet dataset
         # self.maxpool = nn.MaxPool2d(3, stride=2)
         self.bn1 = nn.BatchNorm2d(self.in_planes)
-        self.stage2 = self._make_layer(4, self.out_plane[0], shuffle)
-        self.stage3 = self._make_layer(8, self.out_plane[1], shuffle)
-        self.stage4 = self._make_layer(4, self.out_plane[2], shuffle)
+        self.stage2 = self._make_layer(3, self.out_plane[0], shuffle)
+        self.stage3 = self._make_layer(7, self.out_plane[1], shuffle)
+        self.stage4 = self._make_layer(3, self.out_plane[2], shuffle)
         self.conv5 = nn.Conv2d(self.out_plane[2], self.out_plane[3], kernel_size=1, stride=1, bias=False)
         self.bn5 = nn.BatchNorm2d(self.out_plane[3])
         self.avg_pool = nn.AvgPool2d(4)
@@ -235,12 +234,13 @@ class ShuffleNetV2(nn.Module):
 
     def _make_layer(self, feature_n, out_planes, shuffle):
         layers = []
-        for i in range(feature_n):
-            stride = 2 if i == 0 else 1
-            # cat_planes = self.in_planes if i == 0 else 0
 
-            layers.append(StageV2(self.in_planes, out_planes, stride=stride, shuffle=shuffle))
-            
+        # Down Sampling Block
+        layers = [StageV2(self.in_planes, out_planes, shuffle)]
+
+        # Channel Split Block
+        for i in range(feature_n):
+            layers.append(BasicBlock(out_planes, shuffle=shuffle))
             self.in_planes = out_planes
 
         return nn.Sequential(*layers)
@@ -263,7 +263,7 @@ def test():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # model = ShuffleNet('ShuffleNet', group=1, shuffle=1, scale=1)
-    model = ShuffleNetV2('ShuffleNetV2', c_size=1, shuffle=1)
+    model = ShuffleNetV2('ShuffleNetV2', c_size=1.5, shuffle=1)
     model = model.to(device)
     
     # print(model)

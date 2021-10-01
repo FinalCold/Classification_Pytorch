@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument('--sh_flag', '-sh', default=0, type=int, help='To Switch LR Scheduler = 0 : MultiStep, 1 : Cosine, 2 : Exponential')
     parser.add_argument('--cardinality', '-card', default=16, type=int, help='When using ResNeXt input Cardinality')
     parser.add_argument('--bottleneck_width', '-bw', default=64, type=int, help='When using ResNeXt input bottleneck_width')
-    parser.add_argument('--group', '-gp', default=1, type=int, help='When using ShuffleNet input Group Number')
+    parser.add_argument('--group', '-gp', default=1, type=float, help='When using ShuffleNet input Group Number')
     parser.add_argument('--shuffle', '-sf', default=1, type=int, help='When using ShuffleNet input 1 for shuffle or 0 for False')
     parser.add_argument('--scale', '-sc', default=1, type=float, help='When using ShuffleNet input Scaling Factor')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
